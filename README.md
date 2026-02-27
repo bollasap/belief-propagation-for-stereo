@@ -1,16 +1,23 @@
-# Loopy Belief Propagation for Stereo Matching
-A Matlab implementation of Loopy Belief Propagation for stereo matching. It uses the "Min-Sum" variation of the algorithm and the "Synchronous" message update schedule.
+# Loopy Belief Propagation for Stereo Matching (Sum-Product, Max-Product, Min-Sum)
+
+MATLAB implementation of Loopy Belief Propagation (LBP) for stereo matching, featuring Sum-Product, Max-Product, and Min-Sum message-passing algorithms for disparity estimation.
 
 ## Input Image
 The Tsukuba stereo image that used as input.
 
-<p align="center">
-  <img src="Left.png"> 
-</p>
+![Tsukuba Left](Left.png) ![Tsukuba Right](Right.png)
 
 ## Output Image
-The disparity map that created at the output.
+The disparity maps that created at the output.
 
-<p align="center">
-  <img src="Disparity.png"> 
-</p>
+### Sum-Product
+
+![Belief Propagation Sum-Product Disparity Map](results/Disparity1.png)
+
+### Max-Product
+
+![Belief Propagation Max-Product Disparity Map](results/Disparity2.png)
+
+### Min-Sum
+
+![Belief Propagation Min-Sum Disparity Map](results/Disparity3.png)

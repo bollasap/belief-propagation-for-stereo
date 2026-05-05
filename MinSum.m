@@ -1,7 +1,9 @@
+% Stereo Matching using Loopy Belief Propagation (Min-Sum)
+
 dispLevels = 16;
 iterations = 80;
 lambda = 5;
-threshold = dispLevels-1; %don't use threshold
+threshold = 2;
 
 % Set the disparity values
 d = 0:dispLevels-1;

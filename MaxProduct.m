@@ -1,7 +1,9 @@
+% Stereo Matching using Loopy Belief Propagation (Max-Product)
+
 dispLevels = 16;
 iterations = 80;
 lambda = 5;
-threshold = dispLevels-1; %don't use threshold
+threshold = 2;
 
 % Set the disparity values
 d = 0:dispLevels-1;
@@ -27,7 +29,7 @@ end
 
 % Compute smoothness term
 smoothnessTerm = exp(-lambda*min(abs(d-d'),threshold));
-%smoothnessTerm = max(threshold-abs(d-d'),0).^lambda; %lambda=0.3
+%smoothnessTerm = max(dispLevels-1-abs(d-d'),dispLevels-1-threshold).^(1/lambda); %lambda=3
 
 % Initialize messages
 msgUp = ones(height,width,dispLevels);

@@ -1,12 +1,19 @@
 % Stereo Matching using Loopy Belief Propagation (Max-Product)
+%
 
+% Parameters
 dispLevels = 16;
 iterations = 80;
 lambda = 5;
-threshold = 2;
+trunc = 2;
 
-% Set the disparity values
-d = 0:dispLevels-1;
+% Data term function
+computeDataTerm = @(left,right) exp(-abs(left-right));
+%computeDataTerm = @(left,right) 255-abs(left-right);
+
+% Smoothness term function
+computeSmoothnessTerm = @(d1,d2) exp(-lambda*min(abs(d1-d2),trunc));
+%computeSmoothnessTerm = @(d1,d2) max(dispLevels-1-abs(d1-d2),dispLevels-1-trunc).^(1/lambda); %lambda=3
 
 % Read the stereo image and convert it to grayscale
 left = rgb2gray(imread('Left.png'));
@@ -16,83 +23,89 @@ right = rgb2gray(imread('Right.png'));
 left = imgaussfilt(left,0.6,'FilterSize',5);
 right = imgaussfilt(right,0.6,'FilterSize',5);
 
+% Convert images to double
+left = double(left);
+right = double(right);
+
 % Get the image size
-[height,width] = size(left);
+[rows,cols] = size(left);
 
 % Compute data term
-dataTerm = zeros(height,width,dispLevels);
-for i = 1:dispLevels
-	right_d = [zeros(height,d(i)),right(:,1:end-d(i))];
-	dataTerm(:,:,i) = exp(-abs(double(left)-double(right_d)));
-	%dataTerm(:,:,i) = 255-abs(double(left)-double(right_d));
+dataTerm = zeros(rows,cols,dispLevels);
+for d = 0:dispLevels-1
+    right_d = [zeros(rows,d),right(:,1:end-d)];
+    dataTerm(:,:,d+1) = computeDataTerm(left,right_d);
 end
 
 % Compute smoothness term
-smoothnessTerm = exp(-lambda*min(abs(d-d'),threshold));
-%smoothnessTerm = max(dispLevels-1-abs(d-d'),dispLevels-1-threshold).^(1/lambda); %lambda=3
+d = 0:dispLevels-1; % Set the disparity values
+smoothnessTerm = computeSmoothnessTerm(d,d.');
 
 % Initialize messages
-msgUp = ones(height,width,dispLevels);
-msgDown = ones(height,width,dispLevels);
-msgRight = ones(height,width,dispLevels);
-msgLeft = ones(height,width,dispLevels);
+msgFromLeft = initializeMessages(rows,cols,dispLevels);
+msgFromRight = initializeMessages(rows,cols,dispLevels);
+msgFromUp = initializeMessages(rows,cols,dispLevels);
+msgFromDown = initializeMessages(rows,cols,dispLevels);
+msgFromLeft2 = initializeMessages(rows,cols,dispLevels);
+msgFromRight2 = initializeMessages(rows,cols,dispLevels);
+msgFromUp2 = initializeMessages(rows,cols,dispLevels);
+msgFromDown2 = initializeMessages(rows,cols,dispLevels);
 
 figure
-
-% Start iterations
 for i = 1:iterations
-	% Auxiliary tables that help us create the messages
-	U = dataTerm .* msgDown .* msgRight .* msgLeft;
-	D = dataTerm .* msgUp .* msgRight .* msgLeft;
-	R = dataTerm .* msgUp .* msgDown .* msgLeft;
-	L = dataTerm .* msgUp .* msgDown .* msgRight;
-	
-	% For each pixel
-	for y = 2:height-1
-		for x = 2:width-1
-			% Send message up
-			msg = reshape(U(y,x,:),[dispLevels,1]);
-			msg = max(msg.*smoothnessTerm);
-			msg = msg/sum(msg);
-			msgDown(y-1,x,:) = msg;
-			
-			% Send message down
-			msg = reshape(D(y,x,:),[dispLevels,1]);
-			msg = max(msg.*smoothnessTerm);
-			msg = msg/sum(msg);
-			msgUp(y+1,x,:) = msg;
-			
-			% Send message right
-			msg = reshape(R(y,x,:),[dispLevels,1]);
-			msg = max(msg.*smoothnessTerm);
-			msg = msg/sum(msg);
-			msgLeft(y,x+1,:) = msg;
-			
-			% Send message left
-			msg = reshape(L(y,x,:),[dispLevels,1]);
-			msg = max(msg.*smoothnessTerm);
-			msg = msg/sum(msg);
-			msgRight(y,x-1,:) = msg;
-		end
-	end
-	
-	% Compute belief
-	belief = dataTerm .* msgUp .* msgDown .* msgRight .* msgLeft;
-	
-	% Update disparity map
-	[Y,I] = max(belief,[],3);
-	dispMap = d(I);
-	
-	% Update disparity image
-	scaleFactor = 256/dispLevels;
-	dispImage = uint8(dispMap*scaleFactor);
-	
-	% Show disparity image
-	imshow(dispImage)
-	
-	% Show current iteration
-	fprintf('iteration %d/%d\n',i,iterations)
+    for y = 2:rows-1
+        for x = 2:cols-1
+            % Create message to right
+            msgFromLeft2(y,x+1,:) = computeMessage(dataTerm(y,x,:),msgFromLeft(y,x,:),msgFromUp(y,x,:),msgFromDown(y,x,:),smoothnessTerm);
+
+            % Create message to left
+            msgFromRight2(y,x-1,:) = computeMessage(dataTerm(y,x,:),msgFromRight(y,x,:),msgFromUp(y,x,:),msgFromDown(y,x,:),smoothnessTerm);
+            
+            % Create message to down
+            msgFromUp2(y+1,x,:) = computeMessage(dataTerm(y,x,:),msgFromUp(y,x,:),msgFromLeft(y,x,:),msgFromRight(y,x,:),smoothnessTerm);
+
+            % Create message to up
+            msgFromDown2(y-1,x,:) = computeMessage(dataTerm(y,x,:),msgFromDown(y,x,:),msgFromLeft(y,x,:),msgFromRight(y,x,:),smoothnessTerm);
+        end
+    end
+
+    % Send messages (swap buffers)
+    msgFromLeft = msgFromLeft2;
+    msgFromRight = msgFromRight2;
+    msgFromUp = msgFromUp2;
+    msgFromDown = msgFromDown2;
+
+    % Compute beliefs
+    beliefs = computeBeliefs(dataTerm,msgFromLeft,msgFromRight,msgFromUp,msgFromDown);
+
+    % Update disparity map
+    [~,ind] = max(beliefs,[],3);
+    dispMap = ind-1;
+
+    % Update disparity image
+    scaleFactor = 256/dispLevels;
+    dispImage = uint8(dispMap*scaleFactor);
+
+    % Show disparity image
+    imshow(dispImage)
+
+    % Show current iteration
+    fprintf('iteration %d/%d\n',i,iterations)
 end
 
 % Save disparity image
-imwrite(dispImage,'Disparity.png')
+imwrite(dispImage,'disparity_MaxProduct.png')
+
+function messages = initializeMessages(rows,cols,dispLevels)
+    messages = ones(rows,cols,dispLevels);
+end
+
+function message = computeMessage(dataTerm, incomingMsg1, incomingMsg2, incomingMsg3, smoothnessTerm)
+    costs = squeeze(dataTerm .* incomingMsg1 .* incomingMsg2 .* incomingMsg3);
+    message = max(costs .* smoothnessTerm);
+    message = message/sum(message); % Normalize message
+end
+
+function beliefs = computeBeliefs(dataTerm, incomingMsg1, incomingMsg2, incomingMsg3, incomingMsg4)
+    beliefs = dataTerm .* incomingMsg1 .* incomingMsg2 .* incomingMsg3 .* incomingMsg4;
+end

@@ -12,12 +12,12 @@ The disparity maps that created at the output.
 
 ### Sum-Product
 
-![Belief Propagation Sum-Product Disparity Map](results/Disparity1.png)
+![Belief Propagation Sum-Product Disparity Map](results/disparity_SumProduct.png)
 
 ### Max-Product
 
-![Belief Propagation Max-Product Disparity Map](results/Disparity2.png)
+![Belief Propagation Max-Product Disparity Map](results/disparity_MaxProduct.png)
 
 ### Min-Sum
 
-![Belief Propagation Min-Sum Disparity Map](results/Disparity3.png)
+![Belief Propagation Min-Sum Disparity Map](results/disparity_MinSum.png)

@@ -38,40 +38,37 @@ end
 % Compute smoothness term
 d = 0:dispLevels-1; % Set the disparity values
 smoothnessTerm = computeSmoothnessTerm(d,d.');
+smoothnessTerm = permute(smoothnessTerm,[3 4 1 2]);
 
 % Initialize messages
 msgFromLeft = initializeMessages(rows,cols,dispLevels);
 msgFromRight = initializeMessages(rows,cols,dispLevels);
 msgFromUp = initializeMessages(rows,cols,dispLevels);
 msgFromDown = initializeMessages(rows,cols,dispLevels);
-msgFromLeft2 = initializeMessages(rows,cols,dispLevels);
-msgFromRight2 = initializeMessages(rows,cols,dispLevels);
-msgFromUp2 = initializeMessages(rows,cols,dispLevels);
-msgFromDown2 = initializeMessages(rows,cols,dispLevels);
 
 figure
 for i = 1:iterations
-    for y = 2:rows-1
-        for x = 2:cols-1
-            % Create message to right
-            msgFromLeft2(y,x+1,:) = computeMessage(dataTerm(y,x,:),msgFromLeft(y,x,:),msgFromUp(y,x,:),msgFromDown(y,x,:),smoothnessTerm);
+    % Create messages to right
+    msgToRight = computeMessages(dataTerm,msgFromLeft,msgFromUp,msgFromDown,smoothnessTerm);
+    %msgToRight = computeMessages_lowMemory(dataTerm,msgFromLeft,msgFromUp,msgFromDown,smoothnessTerm);
 
-            % Create message to left
-            msgFromRight2(y,x-1,:) = computeMessage(dataTerm(y,x,:),msgFromRight(y,x,:),msgFromUp(y,x,:),msgFromDown(y,x,:),smoothnessTerm);
-            
-            % Create message to down
-            msgFromUp2(y+1,x,:) = computeMessage(dataTerm(y,x,:),msgFromUp(y,x,:),msgFromLeft(y,x,:),msgFromRight(y,x,:),smoothnessTerm);
+    % Create messages to left
+    msgToLeft = computeMessages(dataTerm,msgFromRight,msgFromUp,msgFromDown,smoothnessTerm);
+    %msgToLeft = computeMessages_lowMemory(dataTerm,msgFromRight,msgFromUp,msgFromDown,smoothnessTerm);
 
-            % Create message to up
-            msgFromDown2(y-1,x,:) = computeMessage(dataTerm(y,x,:),msgFromDown(y,x,:),msgFromLeft(y,x,:),msgFromRight(y,x,:),smoothnessTerm);
-        end
-    end
+    % Create messages to down
+    msgToDown = computeMessages(dataTerm,msgFromUp,msgFromLeft,msgFromRight,smoothnessTerm);
+    %msgToDown = computeMessages_lowMemory(dataTerm,msgFromUp,msgFromLeft,msgFromRight,smoothnessTerm);
 
-    % Send messages (swap buffers)
-    msgFromLeft = msgFromLeft2;
-    msgFromRight = msgFromRight2;
-    msgFromUp = msgFromUp2;
-    msgFromDown = msgFromDown2;
+    % Create messages to up
+    msgToUp = computeMessages(dataTerm,msgFromDown,msgFromLeft,msgFromRight,smoothnessTerm);
+    %msgToUp = computeMessages_lowMemory(dataTerm,msgFromDown,msgFromLeft,msgFromRight,smoothnessTerm);
+
+    % Send messages (shift and swap buffers)
+    msgFromLeft(:,2:end,:) = msgToRight(:,1:end-1,:);
+    msgFromRight(:,1:end-1,:) = msgToLeft(:,2:end,:);
+    msgFromUp(2:end,:,:) = msgToDown(1:end-1,:,:);
+    msgFromDown(1:end-1,:,:) = msgToUp(2:end,:,:);
 
     % Compute beliefs
     beliefs = computeBeliefs(dataTerm,msgFromLeft,msgFromRight,msgFromUp,msgFromDown);
@@ -98,10 +95,20 @@ function messages = initializeMessages(rows,cols,dispLevels)
     messages = zeros(rows,cols,dispLevels);
 end
 
-function message = computeMessage(dataTerm, incomingMsg1, incomingMsg2, incomingMsg3, smoothnessTerm)
-    costs = squeeze(dataTerm + incomingMsg1 + incomingMsg2 + incomingMsg3);
-    message = min(costs + smoothnessTerm);
-    message = message - min(message); % Normalize message
+function messages = computeMessages(dataTerm, incomingMsg1, incomingMsg2, incomingMsg3, smoothnessTerm)
+    costs = dataTerm + incomingMsg1 + incomingMsg2 + incomingMsg3;
+    messages = permute(min(costs + smoothnessTerm,[],3),[1 2 4 3]);
+    messages = messages - min(messages,[],3); % Normalize message
+end
+
+function messages = computeMessages_lowMemory(dataTerm, incomingMsg1, incomingMsg2, incomingMsg3, smoothnessTerm)
+    costs = dataTerm + incomingMsg1 + incomingMsg2 + incomingMsg3;
+    messages = zeros(size(costs));
+    levels = size(messages,3);
+    for i = 1:levels
+        messages(:,:,i) = min(costs + smoothnessTerm(1,1,:,i),[],3);
+    end
+    messages = messages - min(messages,[],3); % Normalize message
 end
 
 function beliefs = computeBeliefs(dataTerm, incomingMsg1, incomingMsg2, incomingMsg3, incomingMsg4)

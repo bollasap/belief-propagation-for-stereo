@@ -52,19 +52,15 @@ figure
 for i = 1:iterations
     % Create messages to right
     msgToRight = computeMessages(dataTerm,msgFromLeft,msgFromUp,msgFromDown,smoothnessTerm);
-    %msgToRight = computeMessages_lowMemory(dataTerm,msgFromLeft,msgFromUp,msgFromDown,smoothnessTerm);
 
     % Create messages to left
     msgToLeft = computeMessages(dataTerm,msgFromRight,msgFromUp,msgFromDown,smoothnessTerm);
-    %msgToLeft = computeMessages_lowMemory(dataTerm,msgFromRight,msgFromUp,msgFromDown,smoothnessTerm);
 
     % Create messages to down
     msgToDown = computeMessages(dataTerm,msgFromUp,msgFromLeft,msgFromRight,smoothnessTerm);
-    %msgToDown = computeMessages_lowMemory(dataTerm,msgFromUp,msgFromLeft,msgFromRight,smoothnessTerm);
 
     % Create messages to up
     msgToUp = computeMessages(dataTerm,msgFromDown,msgFromLeft,msgFromRight,smoothnessTerm);
-    %msgToUp = computeMessages_lowMemory(dataTerm,msgFromDown,msgFromLeft,msgFromRight,smoothnessTerm);
 
     % Send messages (shift and swap buffers)
     msgFromLeft(:,2:end,:) = msgToRight(:,1:end-1,:);
@@ -99,18 +95,21 @@ end
 
 function messages = computeMessages(dataTerm, incomingMsg1, incomingMsg2, incomingMsg3, smoothnessTerm)
     costs = dataTerm .* incomingMsg1 .* incomingMsg2 .* incomingMsg3;
-    messages = permute(max(costs .* smoothnessTerm,[],3),[1 2 4 3]);
+    %messages = maxProductConvolution(costs,smoothnessTerm);
+    messages = maxProductConvolution_lowMemory(costs,smoothnessTerm);
     messages = messages./sum(messages,3); % Normalize message
 end
 
-function messages = computeMessages_lowMemory(dataTerm, incomingMsg1, incomingMsg2, incomingMsg3, smoothnessTerm)
-    costs = dataTerm .* incomingMsg1 .* incomingMsg2 .* incomingMsg3;
+function messages = maxProductConvolution(costs, smoothnessTerm)
+    messages = permute(max(costs .* smoothnessTerm,[],3),[1 2 4 3]);
+end
+
+function messages = maxProductConvolution_lowMemory(costs, smoothnessTerm)
     messages = zeros(size(costs));
     levels = size(messages,3);
     for i = 1:levels
         messages(:,:,i) = max(costs .* smoothnessTerm(1,1,:,i),[],3);
     end
-    messages = messages./sum(messages,3); % Normalize message
 end
 
 function beliefs = computeBeliefs(dataTerm, incomingMsg1, incomingMsg2, incomingMsg3, incomingMsg4)

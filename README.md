@@ -12,9 +12,9 @@ Belief Propagation variants:
 
 The message is updated using **convolution** on the (product or sum of) **incoming messages** and the **smoothness function**.
 
-- In **Sum-Product** it is used the **standard convolution** (sum-product convolution)
-- In **Max-Product** it is used the **max-convolution** (max-product convolution)
-- In **Min-Sum** it is used the **min-convolution** (min-sum convolution)
+- **Sum-Product** uses the **standard convolution** (sum-product convolution)
+- **Max-Product** uses the **max-convolution** (max-product convolution)
+- **Min-Sum** uses the **min-convolution** (min-sum convolution)
 
 Two different computation methods (standard and low memory).
 

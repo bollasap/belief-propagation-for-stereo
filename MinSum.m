@@ -92,21 +92,21 @@ function messages = initializeMessages(rows,cols,dispLevels)
 end
 
 function messages = computeMessages(dataTerm, incomingMsg1, incomingMsg2, incomingMsg3, smoothnessTerm)
-    costs = dataTerm + incomingMsg1 + incomingMsg2 + incomingMsg3;
-    %messages = minSumConvolution(costs,smoothnessTerm);
-    messages = minSumConvolution_lowMemory(costs,smoothnessTerm);
+    incomingMessages = dataTerm + incomingMsg1 + incomingMsg2 + incomingMsg3;
+    %messages = minSumConvolution(incomingMessages,smoothnessTerm);
+    messages = minSumConvolution_lowMemory(incomingMessages,smoothnessTerm);
     messages = messages - min(messages,[],3); % Normalize message
 end
 
-function messages = minSumConvolution(costs, smoothnessTerm)
-    messages = permute(min(costs + smoothnessTerm,[],3),[1 2 4 3]);
+function output = minSumConvolution(incomingMessages, smoothnessTerm)
+    output = permute(min(incomingMessages + smoothnessTerm,[],3),[1 2 4 3]);
 end
 
-function messages = minSumConvolution_lowMemory(costs, smoothnessTerm)
-    messages = zeros(size(costs));
-    levels = size(messages,3);
+function output = minSumConvolution_lowMemory(incomingMessages, smoothnessTerm)
+    output = zeros(size(incomingMessages));
+    levels = size(output,3);
     for i = 1:levels
-        messages(:,:,i) = min(costs + smoothnessTerm(1,1,:,i),[],3);
+        output(:,:,i) = min(incomingMessages + smoothnessTerm(1,1,:,i),[],3);
     end
 end
 
